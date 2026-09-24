@@ -17,15 +17,22 @@ AccessBridge AI is an accessibility assistant that transforms complicated docume
 
 Your task is to analyze the extracted document text and convert it into structured accessibility guidance.
 
-STRICT RULES:
-1. Use ONLY information contained in the uploaded document text.
-2. NEVER invent facts, deadlines, eligibility requirements, or required documents.
-3. If specific information (e.g., deadline, eligibility, documents) is missing from the document, return "Not specified" for string fields or an empty list [] for array fields.
-4. Preserve dates and numbers exactly as stated in the document.
-5. Identify difficult terminology and explain it simply.
-6. Convert instructions into clear, actionable steps.
-7. Preserve all warnings, conditions, and important notices.
-8. Use simple, direct language suitable for users with limited digital literacy.
+RULES FOR GUIDANCE EXTRACTION:
+1. Identify the purpose of the document (e.g. Payment Receipt / Confirmation, Scholarship Notice, Government Form, Legal Notice, Utility Bill, General Document).
+2. For payment or transaction documents, explicitly extract:
+   - Payment / transaction status (e.g. "Payment Successful", "Confirmed", "Pending", "Failed") if explicitly stated.
+   - Transaction, reference, or application numbers if present.
+   - Payment amount and currency if present.
+   - Payment date if present.
+3. For "steps", ALWAYS provide clear, actionable steps for the user:
+   - If the document lists future actions, deadlines, or submission requirements, list them in sequential order.
+   - If the document is a completed payment receipt, confirmation slip, or informative notice, provide 2 practical, user-friendly steps based on the document (e.g. "Keep this payment receipt for your records", "Use reference / application number XYZ to verify status on the official portal if needed").
+   - NEVER return an empty list [] for "steps" if text was extracted from the document.
+4. For "importantPoints", include 2-4 concise, key facts explicitly found in the document (e.g. Amount paid, Transaction ID, Application number, Payment status, Subject/Category).
+5. For "deadline", if an explicit date or deadline is stated in the document, return it. If no deadline exists in the document, return "Not specified in document".
+6. For "warnings", include explicit notices, penalties, conditions, or non-refundable notes found in the document (e.g. "Fees are non-refundable"). If no warnings exist in the document, return [].
+7. For "eligibility" and "requiredDocuments", list criteria or documents if explicitly present in the document. If not present, return [].
+8. NEVER invent facts, deadlines, or numbers. Preserve exact dates, amounts, reference numbers, application numbers, URLs, and proper names.
 9. Return ONLY a single, valid JSON object with NO markdown formatting, NO backticks, and NO extra conversational text.
 
 REQUIRED JSON SCHEMA:
@@ -33,9 +40,9 @@ REQUIRED JSON SCHEMA:
   "title": "Title of document or main subject",
   "documentType": "Category (e.g. Education / Scholarship, Government Form, Legal Notice, Utility Bill, General Document)",
   "simpleExplanation": "Plain language explanation of what this document is about and what the user needs to know.",
-  "eligibility": ["Criteria 1", "Criteria 2"],
-  "deadline": "Exact date or 'Not specified'",
-  "requiredDocuments": ["Document 1", "Document 2"],
+  "eligibility": ["Criteria 1"],
+  "deadline": "Exact date or 'Not specified in document'",
+  "requiredDocuments": ["Document 1"],
   "steps": ["Action step 1", "Action step 2"],
   "warnings": ["Warning 1"],
   "importantPoints": ["Important point 1"]
@@ -145,14 +152,30 @@ def analyze_document_text_with_gemini(document_text: str, filename: str = "Docum
     except json.JSONDecodeError as err:
         raise RuntimeError(f"Failed to parse JSON response from Gemini: {str(err)}. Raw output: {raw_response_text[:200]}")
 
-    # Validate / ensure all required fields exist
-    required_keys = ["title", "documentType", "simpleExplanation", "eligibility", "deadline", "requiredDocuments", "steps", "warnings", "importantPoints"]
-    for key in required_keys:
-        if key not in data:
-            if key in ["eligibility", "requiredDocuments", "steps", "warnings", "importantPoints"]:
-                data[key] = []
+    # Validate / ensure all required fields exist and have correct types
+    array_keys = ["eligibility", "requiredDocuments", "steps", "warnings", "importantPoints"]
+    string_keys = ["title", "documentType", "simpleExplanation", "deadline"]
+
+    for key in string_keys:
+        if key not in data or not isinstance(data[key], str):
+            data[key] = str(data.get(key, "")) if data.get(key) is not None else "Not specified"
+
+    for key in array_keys:
+        if key not in data or not isinstance(data[key], list):
+            if isinstance(data.get(key), str) and data[key].strip():
+                data[key] = [data[key].strip()]
             else:
-                data[key] = "Not specified"
+                data[key] = []
+        else:
+            # Clean array elements to strings
+            data[key] = [str(item).strip() for item in data[key] if item and str(item).strip()]
+
+    # Fallback if steps list is empty
+    if not data["steps"]:
+        data["steps"] = [
+            "Keep a copy of this document for your official records.",
+            "Verify reference numbers or application details on the official portal if required."
+        ]
 
     return data
 

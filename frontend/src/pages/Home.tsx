@@ -67,8 +67,8 @@ export const Home: React.FC = () => {
         en: {
           title: analysis.title || 'Document Summary',
           simpleExplanation: analysis.simpleExplanation || '',
-          actionStepsSummary: stepsArr.join('; '),
-          warnings: warningsArr.join(' '),
+          actionStepsSummary: stepsArr.length > 0 ? stepsArr.join('; ') : 'Keep this document for your records and check details if required.',
+          warnings: warningsArr.length > 0 ? warningsArr.join(' ') : 'Make sure all required information is verified before submission.',
         },
         ta: MOCK_SCHOLARSHIP_ANALYSIS.translations.ta,
         hi: MOCK_SCHOLARSHIP_ANALYSIS.translations.hi,

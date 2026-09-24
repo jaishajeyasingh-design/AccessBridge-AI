@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.analyze import router as analyze_router
+from app.routes.translate import router as translate_router
 
 app = FastAPI(
     title="AccessBridge AI API",
@@ -29,6 +30,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(analyze_router)
+app.include_router(translate_router)
 
 
 @app.get("/api/health")

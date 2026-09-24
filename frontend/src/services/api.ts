@@ -40,3 +40,56 @@ export async function analyzeDocument(file: File): Promise<AnalyzeApiResponse> {
   }
 }
 
+export interface TranslateApiResponse {
+  success: boolean;
+  targetLanguage?: string;
+  translatedText?: string;
+  translatedAnalysis?: any;
+  error?: string;
+}
+
+export async function translateContent(
+  textOrObj: string | object,
+  targetLanguage: string
+): Promise<TranslateApiResponse> {
+  const payloadText = typeof textOrObj === 'string' ? textOrObj : JSON.stringify(textOrObj);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/translate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: payloadText,
+        targetLanguage: targetLanguage,
+      }),
+    });
+
+    let data: TranslateApiResponse;
+    try {
+      data = await response.json();
+    } catch {
+      return {
+        success: false,
+        error: 'Unable to parse translation response from server.',
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data?.error || `Translation request failed (${response.status}).`,
+      };
+    }
+
+    return data;
+  } catch (err: unknown) {
+    console.error('API Error in translateContent:', err);
+    return {
+      success: false,
+      error: 'Unable to connect to AccessBridge AI translation server.',
+    };
+  }
+}
+

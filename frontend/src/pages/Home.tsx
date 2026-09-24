@@ -15,7 +15,7 @@ import { TranslationCard } from '../components/TranslationCard';
 import { VoiceCard } from '../components/VoiceCard';
 import { LanguageCode, MockAnalysisData, UploadedFileState, AnalysisStatus, AnalysisResult } from '../types';
 import { MOCK_SCHOLARSHIP_ANALYSIS } from '../utils/mockData';
-import { analyzeDocument } from '../services/api';
+import { analyzeDocument, translateContent } from '../services/api';
 import { Award, RefreshCw } from 'lucide-react';
 
 export const Home: React.FC = () => {
@@ -24,6 +24,8 @@ export const Home: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<UploadedFileState | null>(null);
   const [analysisData, setAnalysisData] = useState<MockAnalysisData>(MOCK_SCHOLARSHIP_ANALYSIS);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
+  const [translationError, setTranslationError] = useState<string>('');
 
   const ensureArray = (val: unknown): string[] => {
     if (Array.isArray(val)) return val.map((v) => String(v));
@@ -217,6 +219,57 @@ export const Home: React.FC = () => {
     }
   };
 
+  const handleLanguageChange = async (lang: LanguageCode) => {
+    setCurrentLanguage(lang);
+    setTranslationError('');
+
+    if (lang === 'en') {
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const payloadToTranslate = {
+        title: analysisData.title,
+        simpleExplanation: analysisData.simpleExplanation,
+        eligibility: analysisData.eligibility,
+        deadline: analysisData.deadline,
+        requiredDocuments: analysisData.requiredDocuments.map((d) => d.label),
+        steps: analysisData.actionSteps.map((a) => a.label),
+        warnings: analysisData.warnings,
+        importantPoints: analysisData.importantPoints,
+      };
+
+      const res = await translateContent(payloadToTranslate, lang);
+      if (res.success && (res.translatedAnalysis || res.translatedText)) {
+        const transAnalysis = res.translatedAnalysis || {};
+        setAnalysisData((prev) => ({
+          ...prev,
+          translations: {
+            ...prev.translations,
+            [lang]: {
+              title: transAnalysis.title || prev.title,
+              simpleExplanation: transAnalysis.simpleExplanation || res.translatedText || prev.simpleExplanation,
+              actionStepsSummary: Array.isArray(transAnalysis.steps)
+                ? transAnalysis.steps.join('; ')
+                : prev.actionSteps.map((a) => a.label).join('; '),
+              warnings: Array.isArray(transAnalysis.warnings)
+                ? transAnalysis.warnings.join(' ')
+                : prev.warnings,
+            },
+          },
+        }));
+      } else {
+        setTranslationError(res.error || 'Failed to translate content.');
+      }
+    } catch (err: unknown) {
+      console.error('Translation handler error:', err);
+      setTranslationError('Unable to connect to translation service.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const activeTranslation = analysisData.translations[currentLanguage] || analysisData.translations.en;
 
   // Text to be read by Web Speech voice assistant
@@ -227,7 +280,7 @@ export const Home: React.FC = () => {
       {/* Top Header */}
       <Header
         currentLanguage={currentLanguage}
-        onLanguageChange={setCurrentLanguage}
+        onLanguageChange={handleLanguageChange}
         onNavigateHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         onNavigateHowItWorks={handleScrollToHowItWorks}
       />
@@ -344,10 +397,12 @@ export const Home: React.FC = () => {
             {/* Multilingual Translation */}
             <TranslationCard
               selectedLanguage={currentLanguage}
-              onLanguageChange={setCurrentLanguage}
+              onLanguageChange={handleLanguageChange}
               translatedTitle={activeTranslation.title}
               translatedExplanation={activeTranslation.simpleExplanation}
               translatedActionSummary={activeTranslation.actionStepsSummary}
+              isTranslating={isTranslating}
+              translationError={translationError}
             />
           </section>
         )}

@@ -60,7 +60,7 @@ async def analyze_document(file: UploadFile = File(None)):
 
     # 1. Document Text Extraction (in threadpool to prevent event loop blocking)
     try:
-        file_type, extracted_text = await run_in_threadpool(extract_document_text, filename, content_bytes)
+        file_type, extracted_text, extraction_method = await run_in_threadpool(extract_document_text, filename, content_bytes)
     except RuntimeError as rerr:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -78,27 +78,41 @@ async def analyze_document(file: UploadFile = File(None)):
         )
 
     # 2. AI Analysis via Gemini (in threadpool to prevent event loop blocking)
-    ai_analysis = None
-    ai_error = None
-    
     api_key = os.getenv("GEMINI_API_KEY", "")
-    if api_key and api_key != "your_api_key_here":
-        try:
-            ai_analysis = await run_in_threadpool(analyze_document_text_with_gemini, extracted_text, filename)
-        except Exception as ai_err:
-            ai_error = str(ai_err)
-    else:
-        ai_error = "GEMINI_API_KEY is missing or set to placeholder. Please configure GEMINI_API_KEY in backend/.env."
+    if not api_key or api_key.strip() in ("", "your_api_key_here"):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "success": False,
+                "error": "GEMINI_API_KEY is missing or set to placeholder. Please configure GEMINI_API_KEY in backend/.env."
+            }
+        )
 
-    response_payload = {
+    try:
+        ai_analysis = await run_in_threadpool(analyze_document_text_with_gemini, extracted_text, filename)
+    except Exception as ai_err:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": f"AI Analysis error: {str(ai_err)}"
+            }
+        )
+
+    if not ai_analysis:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": "Gemini AI returned empty analysis."
+            }
+        )
+
+    return {
         "success": True,
         "filename": filename,
         "fileType": file_type,
+        "extractionMethod": extraction_method,
         "text": extracted_text,
         "analysis": ai_analysis
     }
-    
-    if ai_error:
-        response_payload["aiNotice"] = ai_error
-
-    return response_payload

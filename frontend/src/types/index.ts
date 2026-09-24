@@ -36,6 +36,7 @@ export interface AnalyzeApiResponse {
   success: boolean;
   filename?: string;
   fileType?: string;
+  extractionMethod?: string;
   text?: string;
   analysis?: AnalysisResult;
   error?: string;

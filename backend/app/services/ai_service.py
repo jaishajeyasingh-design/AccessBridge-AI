@@ -2,9 +2,15 @@ import os
 import json
 import re
 from typing import Dict, Any, List
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Ensure backend/.env or root .env is loaded regardless of working directory
+_env_file = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_file.exists():
+    load_dotenv(dotenv_path=_env_file)
+else:
+    load_dotenv()
 
 SYSTEM_INSTRUCTION = """
 AccessBridge AI is an accessibility assistant that transforms complicated documents into simple, understandable and actionable information.
@@ -90,19 +96,35 @@ def analyze_document_text_with_gemini(document_text: str, filename: str = "Docum
     try:
         from google import genai
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=user_prompt,
-            config={'system_instruction': SYSTEM_INSTRUCTION, 'temperature': 0.2}
-        )
-        raw_response_text = response.text
+        models_to_try = [
+            'gemini-3.6-flash',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-2.5-flash-lite',
+        ]
+        last_error = None
+        for mod in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=mod,
+                    contents=user_prompt,
+                    config={'system_instruction': SYSTEM_INSTRUCTION, 'temperature': 0.2}
+                )
+                raw_response_text = response.text
+                if raw_response_text and raw_response_text.strip():
+                    break
+            except Exception as m_err:
+                last_error = m_err
+                continue
+        if not raw_response_text and last_error:
+            raise last_error
     except Exception as genai_err:
         # Attempt 2: Fallback to google-generativeai SDK
         try:
             import google.generativeai as legacy_genai
             legacy_genai.configure(api_key=api_key)
             model = legacy_genai.GenerativeModel(
-                model_name='gemini-1.5-flash',
+                model_name='gemini-3.6-flash',
                 system_instruction=SYSTEM_INSTRUCTION
             )
             response = model.generate_content(

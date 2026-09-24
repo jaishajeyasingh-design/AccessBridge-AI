@@ -25,36 +25,48 @@ export const Home: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<UploadedFileState | null>(null);
   const [analysisData, setAnalysisData] = useState<MockAnalysisData>(MOCK_SCHOLARSHIP_ANALYSIS);
 
+  const ensureArray = (val: unknown): string[] => {
+    if (Array.isArray(val)) return val.map((v) => String(v));
+    if (typeof val === 'string' && val.trim().length > 0) return [val.trim()];
+    return [];
+  };
+
   const mapBackendResultToUIState = (analysis: AnalysisResult, filename: string): MockAnalysisData => {
+    const eligibilityArr = ensureArray(analysis.eligibility);
+    const reqDocsArr = ensureArray(analysis.requiredDocuments);
+    const stepsArr = ensureArray(analysis.steps);
+    const warningsArr = ensureArray(analysis.warnings);
+    const pointsArr = ensureArray(analysis.importantPoints);
+
     return {
       title: analysis.title || filename || 'Extracted Document',
       documentType: analysis.documentType || 'General Document',
       simpleExplanation: analysis.simpleExplanation || 'No simple explanation provided.',
-      eligibility: analysis.eligibility && analysis.eligibility.length > 0 ? analysis.eligibility : ['Not specified'],
+      eligibility: eligibilityArr.length > 0 ? eligibilityArr : ['Not specified'],
       deadline: analysis.deadline || 'Not specified',
       deadlineWarning: analysis.deadline && analysis.deadline !== 'Not specified'
         ? 'Make sure your application is submitted before this date.'
         : 'Check document details for deadline & submission rules.',
-      requiredDocuments: (analysis.requiredDocuments || []).map((docStr, idx) => ({
+      requiredDocuments: reqDocsArr.map((docStr, idx) => ({
         id: `doc-${idx}`,
         label: docStr,
         completed: false,
       })),
-      actionSteps: (analysis.steps || []).map((stepStr, idx) => ({
+      actionSteps: stepsArr.map((stepStr, idx) => ({
         id: `act-${idx}`,
         label: stepStr,
         completed: false,
       })),
-      importantPoints: analysis.importantPoints || [],
-      warnings: (analysis.warnings && analysis.warnings.length > 0)
-        ? analysis.warnings.join(' ')
+      importantPoints: pointsArr,
+      warnings: warningsArr.length > 0
+        ? warningsArr.join(' ')
         : 'Make sure all required information is verified before submission.',
       translations: {
         en: {
           title: analysis.title || 'Document Summary',
           simpleExplanation: analysis.simpleExplanation || '',
-          actionStepsSummary: (analysis.steps || []).join('; '),
-          warnings: (analysis.warnings || []).join(' '),
+          actionStepsSummary: stepsArr.join('; '),
+          warnings: warningsArr.join(' '),
         },
         ta: MOCK_SCHOLARSHIP_ANALYSIS.translations.ta,
         hi: MOCK_SCHOLARSHIP_ANALYSIS.translations.hi,
@@ -70,7 +82,8 @@ export const Home: React.FC = () => {
     setErrorMessage('');
 
     if (!fileState.fileObj) {
-      setErrorMessage('File object is missing. Please select a valid file.');
+      const errText = 'File object is missing. Please select a valid file.';
+      setErrorMessage(errText);
       setAnalysisStatus('error');
       return;
     }
@@ -83,19 +96,22 @@ export const Home: React.FC = () => {
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
 
     if (!allowedExts.includes(ext)) {
-      setErrorMessage(`Unsupported file type '.${ext}'. Please upload a PDF, PNG, JPG, or TXT file.`);
+      const errText = `Unsupported file type '.${ext}'. Please upload a PDF, PNG, JPG, or TXT file.`;
+      setErrorMessage(errText);
       setAnalysisStatus('error');
       return;
     }
 
     if (file.size === 0) {
-      setErrorMessage('Uploaded file is empty (0 bytes). Please select a document with readable content.');
+      const errText = 'Uploaded file is empty (0 bytes). Please select a document with readable content.';
+      setErrorMessage(errText);
       setAnalysisStatus('error');
       return;
     }
 
     if (file.size > maxSizeBytes) {
-      setErrorMessage(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit of 10 MB.`);
+      const errText = `File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit of 10 MB.`;
+      setErrorMessage(errText);
       setAnalysisStatus('error');
       return;
     }
@@ -117,13 +133,27 @@ export const Home: React.FC = () => {
         }, 150);
       } else {
         const errorMsg = response.error || response.aiNotice || 'Unable to understand this document. Please try another file.';
+        console.error('AccessBridge analysis error:', errorMsg);
         setErrorMessage(errorMsg);
         setAnalysisStatus('error');
+        setTimeout(() => {
+          const errorElem = document.getElementById('error-section');
+          if (errorElem) {
+            errorElem.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 150);
       }
     } catch (err: unknown) {
       console.error('Unhandled error during analysis:', err);
-      setErrorMessage('Unable to connect to AccessBridge AI. Please make sure the backend is running.');
+      const errText = 'Unable to connect to AccessBridge AI. Please make sure the backend is running.';
+      setErrorMessage(errText);
       setAnalysisStatus('error');
+      setTimeout(() => {
+        const errorElem = document.getElementById('error-section');
+        if (errorElem) {
+          errorElem.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 150);
     }
   };
 
@@ -215,6 +245,7 @@ export const Home: React.FC = () => {
           onAnalyze={handleStartAnalysis}
           onSelectSample={handleSelectSample}
           isAnalyzing={analysisStatus === 'analyzing'}
+          errorMessage={analysisStatus === 'error' ? errorMessage : undefined}
         />
 
         {/* Dynamic State Rendering */}
@@ -227,10 +258,12 @@ export const Home: React.FC = () => {
         )}
 
         {analysisStatus === 'error' && (
-          <ErrorState
-            message={errorMessage || 'Unable to process document. Please check your backend connection or try another file.'}
-            onRetry={handleReset}
-          />
+          <div id="error-section" className="scroll-mt-24">
+            <ErrorState
+              message={errorMessage || 'Unable to process document. Please check your backend connection or try another file.'}
+              onRetry={handleReset}
+            />
+          </div>
         )}
 
         {analysisStatus === 'success' && (

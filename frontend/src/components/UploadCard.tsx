@@ -1,17 +1,19 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, X, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Upload, FileText, X, Sparkles, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 import { UploadedFileState } from '../types';
 
 interface UploadCardProps {
   onAnalyze: (file: UploadedFileState) => void;
   onSelectSample: () => void;
   isAnalyzing: boolean;
+  errorMessage?: string;
 }
 
 export const UploadCard: React.FC<UploadCardProps> = ({
   onAnalyze,
   onSelectSample,
   isAnalyzing,
+  errorMessage,
 }) => {
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [selectedFile, setSelectedFile] = useState<UploadedFileState | null>(null);
@@ -82,6 +84,16 @@ export const UploadCard: React.FC<UploadCardProps> = ({
             Upload a PDF, image or text file to extract actionable steps and simplified explanations.
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-300 text-sm flex items-start gap-3 animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-semibold text-rose-200">Analysis Error: </span>
+              <span>{errorMessage}</span>
+            </div>
+          </div>
+        )}
 
         {/* File Dropzone or Selected File Display */}
         {!selectedFile ? (

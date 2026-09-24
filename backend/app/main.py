@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.analyze import router as analyze_router
 
 app = FastAPI(
     title="AccessBridge AI API",
@@ -23,6 +24,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register routers
+app.include_router(analyze_router)
+
 
 @app.get("/api/health")
 def health_check():
@@ -34,4 +38,4 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -20,6 +20,28 @@ export interface TranslationData {
   warnings?: string;
 }
 
+export interface AnalysisResult {
+  title: string;
+  documentType: string;
+  simpleExplanation: string;
+  eligibility: string[];
+  deadline: string;
+  requiredDocuments: string[];
+  steps: string[];
+  warnings: string[];
+  importantPoints: string[];
+}
+
+export interface AnalyzeApiResponse {
+  success: boolean;
+  filename?: string;
+  fileType?: string;
+  text?: string;
+  analysis?: AnalysisResult;
+  error?: string;
+  aiNotice?: string;
+}
+
 export interface MockAnalysisData {
   title: string;
   documentType: string;

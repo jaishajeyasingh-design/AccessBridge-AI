@@ -13,38 +13,136 @@ import { RequiredDocumentsCard } from '../components/RequiredDocumentsCard';
 import { EligibilityWarningCard } from '../components/EligibilityWarningCard';
 import { TranslationCard } from '../components/TranslationCard';
 import { VoiceCard } from '../components/VoiceCard';
-import { LanguageCode, MockAnalysisData, UploadedFileState, AnalysisStatus } from '../types';
+import { LanguageCode, MockAnalysisData, UploadedFileState, AnalysisStatus, AnalysisResult } from '../types';
 import { MOCK_SCHOLARSHIP_ANALYSIS } from '../utils/mockData';
+import { analyzeDocument } from '../services/api';
 import { Award, RefreshCw } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>('en');
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<UploadedFileState | null>(null);
   const [analysisData, setAnalysisData] = useState<MockAnalysisData>(MOCK_SCHOLARSHIP_ANALYSIS);
 
-  const handleStartAnalysis = (file: UploadedFileState) => {
-    setUploadedFile(file);
-    setAnalysisStatus('analyzing');
+  const mapBackendResultToUIState = (analysis: AnalysisResult, filename: string): MockAnalysisData => {
+    return {
+      title: analysis.title || filename || 'Extracted Document',
+      documentType: analysis.documentType || 'General Document',
+      simpleExplanation: analysis.simpleExplanation || 'No simple explanation provided.',
+      eligibility: analysis.eligibility && analysis.eligibility.length > 0 ? analysis.eligibility : ['Not specified'],
+      deadline: analysis.deadline || 'Not specified',
+      deadlineWarning: analysis.deadline && analysis.deadline !== 'Not specified'
+        ? 'Make sure your application is submitted before this date.'
+        : 'Check document details for deadline & submission rules.',
+      requiredDocuments: (analysis.requiredDocuments || []).map((docStr, idx) => ({
+        id: `doc-${idx}`,
+        label: docStr,
+        completed: false,
+      })),
+      actionSteps: (analysis.steps || []).map((stepStr, idx) => ({
+        id: `act-${idx}`,
+        label: stepStr,
+        completed: false,
+      })),
+      importantPoints: analysis.importantPoints || [],
+      warnings: (analysis.warnings && analysis.warnings.length > 0)
+        ? analysis.warnings.join(' ')
+        : 'Make sure all required information is verified before submission.',
+      translations: {
+        en: {
+          title: analysis.title || 'Document Summary',
+          simpleExplanation: analysis.simpleExplanation || '',
+          actionStepsSummary: (analysis.steps || []).join('; '),
+          warnings: (analysis.warnings || []).join(' '),
+        },
+        ta: MOCK_SCHOLARSHIP_ANALYSIS.translations.ta,
+        hi: MOCK_SCHOLARSHIP_ANALYSIS.translations.hi,
+        te: MOCK_SCHOLARSHIP_ANALYSIS.translations.te,
+        ml: MOCK_SCHOLARSHIP_ANALYSIS.translations.ml,
+      },
+    };
   };
 
+  // REAL FLOW: Upload document -> Call FastAPI + Gemini -> Render UI
+  const handleStartAnalysis = async (fileState: UploadedFileState) => {
+    setUploadedFile(fileState);
+    setErrorMessage('');
+
+    if (!fileState.fileObj) {
+      setErrorMessage('File object is missing. Please select a valid file.');
+      setAnalysisStatus('error');
+      return;
+    }
+
+    const file = fileState.fileObj;
+
+    // Frontend validation
+    const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+    const allowedExts = ['pdf', 'png', 'jpg', 'jpeg', 'txt'];
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+    if (!allowedExts.includes(ext)) {
+      setErrorMessage(`Unsupported file type '.${ext}'. Please upload a PDF, PNG, JPG, or TXT file.`);
+      setAnalysisStatus('error');
+      return;
+    }
+
+    if (file.size === 0) {
+      setErrorMessage('Uploaded file is empty (0 bytes). Please select a document with readable content.');
+      setAnalysisStatus('error');
+      return;
+    }
+
+    if (file.size > maxSizeBytes) {
+      setErrorMessage(`File size (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit of 10 MB.`);
+      setAnalysisStatus('error');
+      return;
+    }
+
+    setAnalysisStatus('analyzing');
+
+    try {
+      const response = await analyzeDocument(file);
+
+      if (response.success && response.analysis) {
+        const mappedData = mapBackendResultToUIState(response.analysis, file.name);
+        setAnalysisData(mappedData);
+        setAnalysisStatus('success');
+        setTimeout(() => {
+          const resultElem = document.getElementById('analysis-result');
+          if (resultElem) {
+            resultElem.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 150);
+      } else {
+        const errorMsg = response.error || response.aiNotice || 'Unable to understand this document. Please try another file.';
+        setErrorMessage(errorMsg);
+        setAnalysisStatus('error');
+      }
+    } catch (err: unknown) {
+      console.error('Unhandled error during analysis:', err);
+      setErrorMessage('Unable to connect to AccessBridge AI. Please make sure the backend is running.');
+      setAnalysisStatus('error');
+    }
+  };
+
+  // DEMO FLOW: Offline sample demo
   const handleSelectSample = () => {
     setUploadedFile({
       name: 'Scholarship_Application_Notice_2026.pdf',
       type: 'application/pdf',
       size: 245000,
     });
+    setAnalysisData(MOCK_SCHOLARSHIP_ANALYSIS);
     setAnalysisStatus('analyzing');
     setTimeout(() => {
+      setAnalysisStatus('success');
       const resultElem = document.getElementById('analysis-result');
       if (resultElem) {
         resultElem.scrollIntoView({ behavior: 'smooth' });
       }
-    }, 3600);
-  };
-
-  const handleLoadingComplete = () => {
-    setAnalysisStatus('success');
+    }, 1800);
   };
 
   const handleToggleTask = (taskId: string) => {
@@ -65,6 +163,16 @@ export const Home: React.FC = () => {
     }));
   };
 
+  const handleReset = () => {
+    setUploadedFile(null);
+    setErrorMessage('');
+    setAnalysisStatus('idle');
+    const uploadElem = document.getElementById('upload-section');
+    if (uploadElem) {
+      uploadElem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const handleScrollToUpload = () => {
     const uploadElem = document.getElementById('upload-section');
     if (uploadElem) {
@@ -82,7 +190,7 @@ export const Home: React.FC = () => {
   const activeTranslation = analysisData.translations[currentLanguage] || analysisData.translations.en;
 
   // Text to be read by Web Speech voice assistant
-  const voiceText = `${analysisData.title}. ${analysisData.simpleExplanation}. Required steps: ${analysisData.actionSteps.map(a => a.label).join(', ')}`;
+  const voiceText = `${analysisData.title}. ${analysisData.simpleExplanation}. Deadline: ${analysisData.deadline}. Required documents: ${analysisData.requiredDocuments.map(d => d.label).join(', ')}. Required steps: ${analysisData.actionSteps.map(a => a.label).join(', ')}`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
@@ -111,7 +219,7 @@ export const Home: React.FC = () => {
 
         {/* Dynamic State Rendering */}
         {analysisStatus === 'analyzing' && (
-          <LoadingState onComplete={handleLoadingComplete} />
+          <LoadingState onComplete={() => {}} />
         )}
 
         {analysisStatus === 'idle' && (
@@ -119,7 +227,10 @@ export const Home: React.FC = () => {
         )}
 
         {analysisStatus === 'error' && (
-          <ErrorState onRetry={() => setAnalysisStatus('idle')} />
+          <ErrorState
+            message={errorMessage || 'Unable to process document. Please check your backend connection or try another file.'}
+            onRetry={handleReset}
+          />
         )}
 
         {analysisStatus === 'success' && (
@@ -151,7 +262,7 @@ export const Home: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setAnalysisStatus('idle')}
+                  onClick={handleReset}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-medium border border-slate-700 transition-colors flex items-center gap-2"
                 >
                   <RefreshCw className="w-4 h-4" />

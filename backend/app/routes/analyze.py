@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter, File, UploadFile, status
 from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
 from app.services.document_service import extract_document_text
 from app.services.ai_service import analyze_document_text_with_gemini
 
@@ -57,9 +58,9 @@ async def analyze_document(file: UploadFile = File(None)):
             }
         )
 
-    # 1. Document Text Extraction
+    # 1. Document Text Extraction (in threadpool to prevent event loop blocking)
     try:
-        file_type, extracted_text = extract_document_text(filename, content_bytes)
+        file_type, extracted_text = await run_in_threadpool(extract_document_text, filename, content_bytes)
     except RuntimeError as rerr:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -76,14 +77,14 @@ async def analyze_document(file: UploadFile = File(None)):
             content={"success": False, "error": f"An unexpected error occurred during document extraction: {str(err)}"}
         )
 
-    # 2. AI Analysis via Gemini
+    # 2. AI Analysis via Gemini (in threadpool to prevent event loop blocking)
     ai_analysis = None
     ai_error = None
     
     api_key = os.getenv("GEMINI_API_KEY", "")
     if api_key and api_key != "your_api_key_here":
         try:
-            ai_analysis = analyze_document_text_with_gemini(extracted_text, filename)
+            ai_analysis = await run_in_threadpool(analyze_document_text_with_gemini, extracted_text, filename)
         except Exception as ai_err:
             ai_error = str(ai_err)
     else:

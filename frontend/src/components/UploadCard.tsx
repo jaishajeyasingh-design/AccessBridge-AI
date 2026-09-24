@@ -131,7 +131,7 @@ export const UploadCard: React.FC<UploadCardProps> = ({
             </button>
 
             <div className="text-xs text-slate-500 font-medium">
-              Supported formats: <span className="text-slate-400 font-semibold">PDF • PNG • JPG • TXT</span> (Max 15MB)
+              Supported formats: <span className="text-slate-400 font-semibold">PDF • PNG • JPG • TXT</span> (Max 10MB)
             </div>
           </div>
         ) : (

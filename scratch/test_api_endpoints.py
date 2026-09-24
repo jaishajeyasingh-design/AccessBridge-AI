@@ -12,7 +12,7 @@ def test_health_endpoint():
     data = res.json()
     assert data["status"] == "ok"
     assert data["service"] == "AccessBridge AI"
-    print("✓ GET /api/health passed:", data)
+    print("[OK] GET /api/health passed:", data)
 
 def test_analyze_txt_endpoint():
     print("Testing POST /api/analyze with TXT file...")
@@ -25,7 +25,7 @@ def test_analyze_txt_endpoint():
     assert data["filename"] == "notice.txt"
     assert data["fileType"] == "txt"
     assert "AccessBridge AI Test Document Text." in data["text"]
-    print("✓ POST /api/analyze (TXT) passed:", data)
+    print("[OK] POST /api/analyze (TXT) passed:", data)
 
 def test_analyze_pdf_endpoint():
     print("Testing POST /api/analyze with PDF file...")
@@ -43,7 +43,7 @@ def test_analyze_pdf_endpoint():
     assert data["filename"] == "scholarship.pdf"
     assert data["fileType"] == "pdf"
     assert "PDF Test Extraction Content" in data["text"]
-    print("✓ POST /api/analyze (PDF) passed:", data)
+    print("[OK] POST /api/analyze (PDF) passed:", data)
 
 def test_analyze_unsupported_file_endpoint():
     print("Testing POST /api/analyze with unsupported file type...")
@@ -53,7 +53,7 @@ def test_analyze_unsupported_file_endpoint():
     data = res.json()
     assert data["success"] is False
     assert "Unsupported file type" in data["error"]
-    print("✓ POST /api/analyze (Unsupported file) passed:", data)
+    print("[OK] POST /api/analyze (Unsupported file) passed:", data)
 
 def test_analyze_missing_file_endpoint():
     print("Testing POST /api/analyze with missing file...")
@@ -62,7 +62,7 @@ def test_analyze_missing_file_endpoint():
     data = res.json()
     assert data["success"] is False
     assert "No file uploaded" in data["error"]
-    print("✓ POST /api/analyze (Missing file) passed:", data)
+    print("[OK] POST /api/analyze (Missing file) passed:", data)
 
 def test_analyze_large_file_endpoint():
     print("Testing POST /api/analyze with oversized file (>10MB)...")
@@ -73,7 +73,7 @@ def test_analyze_large_file_endpoint():
     data = res.json()
     assert data["success"] is False
     assert "exceeds maximum allowed limit" in data["error"]
-    print("✓ POST /api/analyze (Oversized file) passed:", data)
+    print("[OK] POST /api/analyze (Oversized file) passed:", data)
 
 if __name__ == "__main__":
     test_health_endpoint()

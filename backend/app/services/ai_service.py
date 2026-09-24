@@ -341,3 +341,121 @@ CRITICAL RULES:
             "targetLanguage": mapped_lang,
             "translatedText": raw_response_text.strip()
         }
+
+
+ASK_SYSTEM_INSTRUCTION = """You are AccessBridge AI's document question-answering assistant.
+
+Answer ONLY using information contained in the provided document text and structured analysis.
+
+Do not use outside knowledge.
+Do not guess.
+Do not invent missing information.
+
+If the answer is not present in the document, clearly say:
+'I could not find that information in the uploaded document.'
+
+Preserve exact:
+- dates
+- amounts
+- transaction numbers
+- enrollment IDs
+- application numbers
+- names
+- URLs
+
+Give concise, easy-to-understand answers suitable for users with limited digital literacy."""
+
+
+def ask_question_about_document_with_gemini(
+    question: str,
+    document_text: str,
+    analysis: Dict[str, Any] = None,
+    language: str = "English"
+) -> Dict[str, Any]:
+    """
+    Answers natural-language user questions strictly grounded in the extracted document text and analysis.
+    """
+    if not question or not question.strip():
+        raise ValueError("Question cannot be empty.")
+
+    if not document_text or not document_text.strip():
+        raise ValueError("Document text cannot be empty.")
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key.strip() in ("", "your_api_key_here"):
+        raise ValueError(
+            "GEMINI_API_KEY environment variable is missing or unconfigured. "
+            "Please set a valid GEMINI_API_KEY in backend/.env file."
+        )
+
+    target_lang_clean = (language or "English").strip().lower()
+    mapped_lang = LANGUAGE_MAP.get(target_lang_clean, "English")
+
+    system_instruction = ASK_SYSTEM_INSTRUCTION
+    if mapped_lang != "English":
+        system_instruction += f"\n\nIMPORTANT: Answer the user's question in {mapped_lang} while still grounding the answer strictly in the provided document text and structured analysis."
+
+    analysis_str = json.dumps(analysis, ensure_ascii=False) if analysis else "{}"
+    user_prompt = f"""Structured Document Analysis:
+{analysis_str}
+
+Extracted Document Text:
+{document_text}
+
+User Question:
+{question}"""
+
+    raw_response_text = ""
+
+    # Attempt 1: Try modern google-genai SDK
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        models_to_try = [
+            'gemini-3.6-flash',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash-lite',
+            'gemini-2.5-flash-lite',
+        ]
+        last_err = None
+        for mod in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=mod,
+                    contents=user_prompt,
+                    config={'system_instruction': system_instruction, 'temperature': 0.1}
+                )
+                raw_response_text = response.text
+                if raw_response_text and raw_response_text.strip():
+                    break
+            except Exception as m_err:
+                last_err = m_err
+                continue
+        if not raw_response_text and last_err:
+            raise last_err
+    except Exception as genai_err:
+        # Attempt 2: Fallback to google-generativeai SDK
+        try:
+            import google.generativeai as legacy_genai
+            legacy_genai.configure(api_key=api_key)
+            model = legacy_genai.GenerativeModel(
+                model_name='gemini-2.5-flash',
+                system_instruction=system_instruction
+            )
+            response = model.generate_content(
+                user_prompt,
+                generation_config=legacy_genai.types.GenerationConfig(temperature=0.1)
+            )
+            raw_response_text = response.text
+        except Exception as legacy_err:
+            raise RuntimeError(f"Gemini Q&A request failed: {str(genai_err)} | Legacy fallback: {str(legacy_err)}")
+
+    if not raw_response_text or not raw_response_text.strip():
+        raise RuntimeError("Received empty response from Gemini Q&A API.")
+
+    return {
+        "success": True,
+        "answer": raw_response_text.strip(),
+        "source": "document"
+    }
+

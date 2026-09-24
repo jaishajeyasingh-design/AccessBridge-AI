@@ -13,10 +13,11 @@ import { RequiredDocumentsCard } from '../components/RequiredDocumentsCard';
 import { EligibilityWarningCard } from '../components/EligibilityWarningCard';
 import { TranslationCard } from '../components/TranslationCard';
 import { VoiceCard } from '../components/VoiceCard';
+import { AskDocumentCard } from '../components/AskDocumentCard';
 import { LanguageCode, MockAnalysisData, UploadedFileState, AnalysisStatus, AnalysisResult } from '../types';
-import { MOCK_SCHOLARSHIP_ANALYSIS } from '../utils/mockData';
+import { MOCK_SCHOLARSHIP_ANALYSIS, DEMO_GATE_PAYMENT_ANALYSIS, DEMO_GATE_PAYMENT_TEXT } from '../utils/mockData';
 import { analyzeDocument, translateContent } from '../services/api';
-import { Award, RefreshCw } from 'lucide-react';
+import { Award, RefreshCw, Sparkles } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>('en');
@@ -24,6 +25,9 @@ export const Home: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<UploadedFileState | null>(null);
   const [analysisData, setAnalysisData] = useState<MockAnalysisData>(MOCK_SCHOLARSHIP_ANALYSIS);
+  const [extractedText, setExtractedText] = useState<string>('');
+  const [rawAnalysis, setRawAnalysis] = useState<object>({});
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
   const [translationError, setTranslationError] = useState<string>('');
 
@@ -86,6 +90,7 @@ export const Home: React.FC = () => {
 
   // REAL FLOW: Upload document -> Call FastAPI + Gemini -> Render UI
   const handleStartAnalysis = async (fileState: UploadedFileState) => {
+    setIsDemoMode(false);
     setUploadedFile(fileState);
     setErrorMessage('');
 
@@ -130,6 +135,11 @@ export const Home: React.FC = () => {
       const response = await analyzeDocument(file);
 
       if (response.success && response.analysis) {
+        if (response.text) {
+          setExtractedText(response.text);
+        }
+        setRawAnalysis(response.analysis);
+
         const mappedData = mapBackendResultToUIState(response.analysis, file.name);
         setAnalysisData(mappedData);
         setAnalysisStatus('success');
@@ -165,22 +175,24 @@ export const Home: React.FC = () => {
     }
   };
 
-  // DEMO FLOW: Offline sample demo
+  // INTERACTIVE DEMO FLOW: Reliable demo sample document
   const handleSelectSample = () => {
+    setIsDemoMode(true);
     setUploadedFile({
-      name: 'Scholarship_Application_Notice_2026.pdf',
+      name: 'GATE_2027_Payment_Confirmation.pdf',
       type: 'application/pdf',
-      size: 245000,
+      size: 154000,
     });
-    setAnalysisData(MOCK_SCHOLARSHIP_ANALYSIS);
-    setAnalysisStatus('analyzing');
+    setExtractedText(DEMO_GATE_PAYMENT_TEXT);
+    setRawAnalysis(DEMO_GATE_PAYMENT_ANALYSIS);
+    setAnalysisData(DEMO_GATE_PAYMENT_ANALYSIS);
+    setAnalysisStatus('success');
     setTimeout(() => {
-      setAnalysisStatus('success');
       const resultElem = document.getElementById('analysis-result');
       if (resultElem) {
         resultElem.scrollIntoView({ behavior: 'smooth' });
       }
-    }, 1800);
+    }, 100);
   };
 
   const handleToggleTask = (taskId: string) => {
@@ -202,9 +214,12 @@ export const Home: React.FC = () => {
   };
 
   const handleReset = () => {
+    setIsDemoMode(false);
     setUploadedFile(null);
     setErrorMessage('');
     setAnalysisStatus('idle');
+    setExtractedText('');
+    setRawAnalysis({});
     const uploadElem = document.getElementById('upload-section');
     if (uploadElem) {
       uploadElem.scrollIntoView({ behavior: 'smooth' });
@@ -328,18 +343,25 @@ export const Home: React.FC = () => {
         {analysisStatus === 'success' && (
           <section id="analysis-result" className="scroll-mt-24 space-y-8 animate-fadeIn">
             {/* Result Header Badge */}
-            <div className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-3xl pointer-events-none rounded-full" />
+            <div className={`bg-slate-900 border ${isDemoMode ? 'border-amber-500/50' : 'border-indigo-500/40'} rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden`}>
+              <div className={`absolute top-0 right-0 w-64 h-64 ${isDemoMode ? 'bg-amber-500/10' : 'bg-indigo-500/10'} blur-3xl pointer-events-none rounded-full`} />
               
               <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shrink-0 shadow-lg">
+                <div className={`w-14 h-14 rounded-2xl ${isDemoMode ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400'} border flex items-center justify-center shrink-0 shadow-lg`}>
                   <Award className="w-7 h-7" />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                    <span className="text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-0.5 rounded-full">
-                      {analysisData.documentType}
-                    </span>
+                    {isDemoMode ? (
+                      <span className="text-xs font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-0.5 rounded-full flex items-center gap-1.5 shadow-sm">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>INTERACTIVE DEMO</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-0.5 rounded-full">
+                        {analysisData.documentType}
+                      </span>
+                    )}
                     {uploadedFile && (
                       <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-full">
                         {uploadedFile.name}
@@ -349,16 +371,25 @@ export const Home: React.FC = () => {
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
                     {analysisData.title}
                   </h2>
+                  {isDemoMode && (
+                    <p className="text-xs text-amber-200/90 font-medium mt-1">
+                      Explore AccessBridge AI using a sample document.
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleReset}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-medium border border-slate-700 transition-colors flex items-center gap-2"
+                  className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all flex items-center gap-2 ${
+                    isDemoMode
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 border-amber-400/40 shadow-lg'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                  }`}
                 >
                   <RefreshCw className="w-4 h-4" />
-                  <span>Analyze Another</span>
+                  <span>{isDemoMode ? 'Exit Demo & Analyze Document' : 'Analyze Another'}</span>
                 </button>
               </div>
             </div>
@@ -372,6 +403,13 @@ export const Home: React.FC = () => {
             {/* Simplified Explanation */}
             <SimpleExplanationCard
               explanation={analysisData.simpleExplanation}
+            />
+
+            {/* Ask AccessBridge Document Q&A */}
+            <AskDocumentCard
+              documentText={extractedText}
+              analysis={rawAnalysis}
+              selectedLanguage={currentLanguage}
             />
 
             {/* Important Deadline */}

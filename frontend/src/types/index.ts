@@ -43,6 +43,13 @@ export interface AnalyzeApiResponse {
   aiNotice?: string;
 }
 
+export interface AskApiResponse {
+  success: boolean;
+  answer?: string;
+  source?: string;
+  error?: string;
+}
+
 export interface MockAnalysisData {
   title: string;
   documentType: string;

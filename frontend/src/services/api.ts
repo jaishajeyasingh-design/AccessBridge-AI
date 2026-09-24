@@ -1,4 +1,4 @@
-import { AnalyzeApiResponse } from '../types';
+import { AnalyzeApiResponse, AskApiResponse } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -89,6 +89,53 @@ export async function translateContent(
     return {
       success: false,
       error: 'Unable to connect to AccessBridge AI translation server.',
+    };
+  }
+}
+
+export async function askQuestion(
+  question: string,
+  documentText: string,
+  analysis: object = {},
+  language: string = 'English'
+): Promise<AskApiResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/ask`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question,
+        documentText,
+        analysis,
+        language,
+      }),
+    });
+
+    let data: AskApiResponse;
+    try {
+      data = await response.json();
+    } catch {
+      return {
+        success: false,
+        error: 'Unable to parse Q&A response from server.',
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data?.error || `Q&A request failed (${response.status}).`,
+      };
+    }
+
+    return data;
+  } catch (err: unknown) {
+    console.error('API Error in askQuestion:', err);
+    return {
+      success: false,
+      error: 'Unable to connect to AccessBridge AI server.',
     };
   }
 }

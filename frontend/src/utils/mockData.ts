@@ -71,3 +71,78 @@ export const MOCK_SCHOLARSHIP_ANALYSIS: MockAnalysisData = {
     }
   }
 };
+
+export const DEMO_GATE_PAYMENT_TEXT = `Graduate Aptitude Test in Engineering (GATE) 2027 Payment Confirmation
+Enrollment ID: M241PS0
+Candidate Name: Sample Candidate
+Payment Status: Payment Received Successfully
+Amount Paid: ₹1000
+Transaction Number: 114831134087
+Payment Date: 24 September 2026
+Description: This document confirms that the GATE 2027 application payment was successfully completed.
+Action Steps:
+1. Keep this payment receipt and transaction number for your records.
+2. Use your enrollment ID or transaction number to verify your application status on the official GATE portal if needed.
+No deadline was found in the uploaded document.
+No specific documents are listed in this document.`;
+
+export const DEMO_GATE_PAYMENT_ANALYSIS: MockAnalysisData = {
+  title: "Graduate Aptitude Test in Engineering (GATE) 2027 Payment Confirmation",
+  documentType: "Education / Payment Confirmation",
+  simpleExplanation: "This document confirms that the GATE 2027 application payment was successfully completed.",
+  eligibility: [],
+  deadline: "Not specified in document",
+  deadlineWarning: "No deadline was found in the uploaded document.",
+  requiredDocuments: [],
+  actionSteps: [
+    {
+      id: "demo-act-1",
+      label: "Keep this payment receipt and transaction number for your records.",
+      completed: false
+    },
+    {
+      id: "demo-act-2",
+      label: "Use your enrollment ID or transaction number to verify your application status on the official GATE portal if needed.",
+      completed: false
+    }
+  ],
+  importantPoints: [
+    "Payment Status: Payment Received Successfully",
+    "Amount Paid: ₹1000",
+    "Transaction Number: 114831134087",
+    "Enrollment ID: M241PS0"
+  ],
+  warnings: "",
+  translations: {
+    en: {
+      title: "Graduate Aptitude Test in Engineering (GATE) 2027 Payment Confirmation",
+      simpleExplanation: "This document confirms that the GATE 2027 application payment was successfully completed.",
+      actionStepsSummary: "Keep this payment receipt and transaction number for your records; Use your enrollment ID or transaction number to verify your application status on the official GATE portal if needed.",
+      warnings: ""
+    },
+    ta: {
+      title: "GATE 2027 கட்டண உறுதிப்படுத்தல்",
+      simpleExplanation: "GATE 2027 விண்ணப்பக் கட்டணம் வெற்றிகரமாகச் செலுத்தப்பட்டதை இந்த ஆவணம் உறுதிப்படுத்துகிறது.",
+      actionStepsSummary: "கட்டண ரசீது மற்றும் பரிவர்த்தனை எண்ணைப் பதிவுகளுக்கு வைத்துக்கொள்ளவும்; தேவைப்பட்டால் GATE போர்ட்டலில் சரிபார்க்கவும்.",
+      warnings: ""
+    },
+    hi: {
+      title: "गेट (GATE) 2027 भुगतान पुष्टि",
+      simpleExplanation: "यह दस्तावेज पुष्टि करता है कि गेट 2027 आवेदन का भुगतान सफलतापूर्वक पूरा हो गया है।",
+      actionStepsSummary: "भुगतान रसीद और लेनदेन संख्या को रिकॉर्ड के लिए रखें; आवश्यकता पड़ने पर आधिकारिक पोर्टल पर जांच करें।",
+      warnings: ""
+    },
+    te: {
+      title: "గేట్ (GATE) 2027 చెల్లింపు ధృవీకరణ",
+      simpleExplanation: "GATE 2027 దరఖాస్తు చెల్లింపు విజయవంతంగా పూర్తయిందని ఈ పత్రం ధృవీకరిస్తుంది.",
+      actionStepsSummary: "రసీదు మరియు లావాదేవీ సంఖ్యను మీ వద్ద ఉంచుకోండి; అవసరమైతే అధికారిక పోర్టల్‌లో సరిచూసుకోండి.",
+      warnings: ""
+    },
+    ml: {
+      title: "ഗേറ്റ് (GATE) 2027 പേയ്‌മെന്റ് സ്ഥിരീകരണം",
+      simpleExplanation: "GATE 2027 അപേക്ഷ പേയ്‌മെന്റ് വിജയകരമായി പൂർത്തിയായെന്ന് ഈ രേഖ സ്ഥിരീകരിക്കുന്നു.",
+      actionStepsSummary: "പേയ്‌മെന്റ് രസീതും ട്രാൻസാക്ഷൻ നമ്പറും സൂക്ഷിക്കുക; ആവശ്യമെങ്കിൽ ഒഫീഷ്യൽ പോർട്ടലിൽ പരിശോധിക്കുക.",
+      warnings: ""
+    }
+  }
+};

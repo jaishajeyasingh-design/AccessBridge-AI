@@ -135,9 +135,11 @@ export const Home: React.FC = () => {
       const response = await analyzeDocument(file);
 
       if (response.success && response.analysis) {
-        if (response.text) {
-          setExtractedText(response.text);
-        }
+        const docText =
+          response.text && response.text.trim().length > 0
+            ? response.text
+            : `${response.analysis.title}. ${response.analysis.simpleExplanation}. ${ensureArray(response.analysis.importantPoints).join(' ')}`;
+        setExtractedText(docText);
         setRawAnalysis(response.analysis);
 
         const mappedData = mapBackendResultToUIState(response.analysis, file.name);
@@ -248,6 +250,11 @@ export const Home: React.FC = () => {
       return;
     }
 
+    // In demo mode, pre-cached translations in DEMO_GATE_PAYMENT_ANALYSIS.translations are available instantly
+    if (isDemoMode) {
+      return;
+    }
+
     setIsTranslating(true);
     try {
       const payloadToTranslate = {
@@ -281,11 +288,16 @@ export const Home: React.FC = () => {
           },
         }));
       } else {
-        setTranslationError(res.error || 'Failed to translate content.');
+        const err = res.error || '';
+        if (err.includes('quota') || err.includes('429') || err.includes('exhausted') || err.includes('RESOURCE_EXHAUSTED')) {
+          setTranslationError('Live translation is temporarily unavailable because the AI service quota has been reached.');
+        } else {
+          setTranslationError(err || 'Failed to translate content.');
+        }
       }
     } catch (err: unknown) {
       console.error('Translation handler error:', err);
-      setTranslationError('Unable to connect to translation service.');
+      setTranslationError('Live translation is temporarily unavailable because the AI service quota has been reached.');
     } finally {
       setIsTranslating(false);
     }
@@ -405,13 +417,6 @@ export const Home: React.FC = () => {
               explanation={analysisData.simpleExplanation}
             />
 
-            {/* Ask AccessBridge Document Q&A */}
-            <AskDocumentCard
-              documentText={extractedText}
-              analysis={rawAnalysis}
-              selectedLanguage={currentLanguage}
-            />
-
             {/* Important Deadline */}
             <DeadlineCard
               deadline={analysisData.deadline}
@@ -447,6 +452,14 @@ export const Home: React.FC = () => {
               translatedActionSummary={activeTranslation.actionStepsSummary}
               isTranslating={isTranslating}
               translationError={translationError}
+            />
+
+            {/* Ask AccessBridge Document Q&A */}
+            <AskDocumentCard
+              documentText={extractedText}
+              analysis={rawAnalysis}
+              selectedLanguage={currentLanguage}
+              isDemoMode={isDemoMode}
             />
           </section>
         )}

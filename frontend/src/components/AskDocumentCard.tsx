@@ -16,6 +16,7 @@ interface AskDocumentCardProps {
   documentText: string;
   analysis: object;
   selectedLanguage: LanguageCode;
+  isDemoMode?: boolean;
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -41,10 +42,74 @@ const SPEECH_LANG_MAP: Record<LanguageCode, string> = {
   ml: 'ml-IN',
 };
 
+const handleDemoQuestion = (query: string): string => {
+  const q = query.toLowerCase().trim();
+
+  // 1. Transaction number / ID / reference
+  if (
+    q.includes('transaction') ||
+    q.includes('reference') ||
+    q.includes('txn') ||
+    q.includes('114831134087')
+  ) {
+    return 'Your transaction number is 114831134087.';
+  }
+
+  // 2. Amount / pay / fee / cost / price
+  if (
+    q.includes('how much') ||
+    q.includes('amount') ||
+    q.includes('pay') ||
+    q.includes('fee') ||
+    q.includes('cost') ||
+    q.includes('price') ||
+    q.includes('1000') ||
+    q.includes('₹') ||
+    q.includes('rupee')
+  ) {
+    return 'You paid ₹1000.';
+  }
+
+  // 3. Payment status / successful / confirmed
+  if (
+    q.includes('successful') ||
+    q.includes('confirm') ||
+    q.includes('status') ||
+    q.includes('received')
+  ) {
+    return 'Yes. The document says the payment was received successfully.';
+  }
+
+  // 4. Next action / what to do / steps
+  if (
+    q.includes('next') ||
+    q.includes('do') ||
+    q.includes('action') ||
+    q.includes('step') ||
+    q.includes('should i')
+  ) {
+    return 'Keep the payment receipt and transaction number for your records. You can also use your enrollment ID or transaction number to verify the application status on the official GATE portal if needed.';
+  }
+
+  // 5. Enrollment ID
+  if (q.includes('enrollment') || q.includes('id') || q.includes('m241ps0')) {
+    return 'Your Enrollment ID is M241PS0.';
+  }
+
+  // 6. What is document about / summary
+  if (q.includes('about') || q.includes('summary') || q.includes('document') || q.includes('gate 2027')) {
+    return 'This document confirms that the GATE 2027 application payment was successfully completed.';
+  }
+
+  // 7. Unknown question
+  return 'I could not find that information in the demo document.';
+};
+
 export const AskDocumentCard: React.FC<AskDocumentCardProps> = ({
   documentText,
   analysis,
   selectedLanguage,
+  isDemoMode = false,
 }) => {
   const [question, setQuestion] = useState<string>('');
   const [answer, setAnswer] = useState<string>('');
@@ -152,6 +217,15 @@ export const AskDocumentCard: React.FC<AskDocumentCardProps> = ({
     setIsLoading(true);
     setAnswer('');
     setAskedQuestionText(query);
+
+    if (isDemoMode) {
+      setTimeout(() => {
+        const demoAns = handleDemoQuestion(query);
+        setAnswer(demoAns);
+        setIsLoading(false);
+      }, 150);
+      return;
+    }
 
     const targetLang = LANGUAGE_NAME_MAP[selectedLanguage] || 'English';
 

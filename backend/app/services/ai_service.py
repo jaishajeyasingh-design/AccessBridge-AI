@@ -84,6 +84,16 @@ def _format_fallback_response(title: str, text_excerpt: str, error_msg: str) -> 
         "importantPoints": ["Original document text has been extracted."]
     }
 
+def _format_gemini_error(err: Exception) -> str:
+    """Returns a user-friendly error message for common Gemini API errors (429, 404)."""
+    err_str = str(err)
+    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "Quota exceeded" in err_str or "quota" in err_str.lower():
+        return "AI analysis quota is temporarily exhausted. Please try again later or use Interactive Demo."
+    if "404" in err_str or "NOT_FOUND" in err_str or "is not found" in err_str:
+        return "The configured Gemini model is unavailable. Please update the model configuration."
+    return f"Gemini API request failed: {err_str}"
+
+
 def analyze_document_text_with_gemini(document_text: str, filename: str = "Document") -> Dict[str, Any]:
     """
     Sends extracted document text to Gemini AI and returns structured accessibility JSON.
@@ -104,10 +114,10 @@ def analyze_document_text_with_gemini(document_text: str, filename: str = "Docum
         from google import genai
         client = genai.Client(api_key=api_key)
         models_to_try = [
-            'gemini-3.6-flash',
-            'gemini-2.5-flash',
             'gemini-3.5-flash-lite',
-            'gemini-2.5-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-3.8-flash',
+            'gemini-2.5-flash',
         ]
         last_error = None
         for mod in models_to_try:
@@ -131,7 +141,7 @@ def analyze_document_text_with_gemini(document_text: str, filename: str = "Docum
             import google.generativeai as legacy_genai
             legacy_genai.configure(api_key=api_key)
             model = legacy_genai.GenerativeModel(
-                model_name='gemini-3.6-flash',
+                model_name='gemini-3.5-flash-lite',
                 system_instruction=SYSTEM_INSTRUCTION
             )
             response = model.generate_content(
@@ -140,7 +150,7 @@ def analyze_document_text_with_gemini(document_text: str, filename: str = "Docum
             )
             raw_response_text = response.text
         except Exception as legacy_err:
-            raise RuntimeError(f"Gemini API request failed: {str(genai_err)} | Legacy fallback: {str(legacy_err)}")
+            raise RuntimeError(_format_gemini_error(genai_err or legacy_err))
 
     if not raw_response_text or not raw_response_text.strip():
         raise RuntimeError("Received empty response from Gemini API.")
@@ -283,7 +293,12 @@ CRITICAL RULES:
     try:
         from google import genai
         client = genai.Client(api_key=api_key)
-        models_to_try = ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']
+        models_to_try = [
+            'gemini-3.5-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-3.8-flash',
+            'gemini-2.5-flash',
+        ]
         last_err = None
         for mod in models_to_try:
             try:
@@ -314,7 +329,7 @@ CRITICAL RULES:
             )
             raw_response_text = response.text
         except Exception as legacy_err:
-            raise RuntimeError(f"Gemini Translation failed: {str(genai_err)} | Legacy fallback: {str(legacy_err)}")
+            raise RuntimeError(_format_gemini_error(genai_err or legacy_err))
 
     if not raw_response_text or not raw_response_text.strip():
         raise RuntimeError(f"Received empty translation response from Gemini for language {mapped_lang}.")
@@ -412,10 +427,10 @@ User Question:
         from google import genai
         client = genai.Client(api_key=api_key)
         models_to_try = [
-            'gemini-3.6-flash',
-            'gemini-2.5-flash',
             'gemini-3.5-flash-lite',
-            'gemini-2.5-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-3.8-flash',
+            'gemini-2.5-flash',
         ]
         last_err = None
         for mod in models_to_try:
@@ -439,7 +454,7 @@ User Question:
             import google.generativeai as legacy_genai
             legacy_genai.configure(api_key=api_key)
             model = legacy_genai.GenerativeModel(
-                model_name='gemini-2.5-flash',
+                model_name='gemini-3.5-flash-lite',
                 system_instruction=system_instruction
             )
             response = model.generate_content(
@@ -448,7 +463,7 @@ User Question:
             )
             raw_response_text = response.text
         except Exception as legacy_err:
-            raise RuntimeError(f"Gemini Q&A request failed: {str(genai_err)} | Legacy fallback: {str(legacy_err)}")
+            raise RuntimeError(_format_gemini_error(genai_err or legacy_err))
 
     if not raw_response_text or not raw_response_text.strip():
         raise RuntimeError("Received empty response from Gemini Q&A API.")

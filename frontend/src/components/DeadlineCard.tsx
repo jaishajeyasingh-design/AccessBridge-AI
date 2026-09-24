@@ -7,6 +7,16 @@ interface DeadlineCardProps {
 }
 
 export const DeadlineCard: React.FC<DeadlineCardProps> = ({ deadline, warning }) => {
+  const isNotSpecified =
+    !deadline ||
+    deadline.toLowerCase().includes('not specified') ||
+    deadline.toLowerCase().includes('no deadline') ||
+    deadline.toLowerCase().includes('none');
+
+  const displayWarning = isNotSpecified
+    ? 'No deadline was found in the uploaded document.'
+    : warning;
+
   return (
     <div className="bg-gradient-to-br from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
       {/* Decorative side bar */}
@@ -30,7 +40,7 @@ export const DeadlineCard: React.FC<DeadlineCardProps> = ({ deadline, warning })
 
           <div className="flex items-center gap-2 text-amber-200/90 text-sm font-medium">
             <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>{warning}</span>
+            <span>{displayWarning}</span>
           </div>
         </div>
       </div>

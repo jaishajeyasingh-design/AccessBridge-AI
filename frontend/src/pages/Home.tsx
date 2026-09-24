@@ -40,15 +40,21 @@ export const Home: React.FC = () => {
     const warningsArr = ensureArray(analysis.warnings);
     const pointsArr = ensureArray(analysis.importantPoints);
 
+    const hasRealDeadline =
+      analysis.deadline &&
+      analysis.deadline.trim() !== '' &&
+      !analysis.deadline.toLowerCase().includes('not specified') &&
+      !analysis.deadline.toLowerCase().includes('none');
+
     return {
       title: analysis.title || filename || 'Extracted Document',
       documentType: analysis.documentType || 'General Document',
       simpleExplanation: analysis.simpleExplanation || 'No simple explanation provided.',
       eligibility: eligibilityArr.length > 0 ? eligibilityArr : ['Not specified'],
-      deadline: analysis.deadline || 'Not specified',
-      deadlineWarning: analysis.deadline && analysis.deadline !== 'Not specified'
+      deadline: analysis.deadline || 'Not specified in document',
+      deadlineWarning: hasRealDeadline
         ? 'Make sure your application is submitted before this date.'
-        : 'Check document details for deadline & submission rules.',
+        : 'No deadline was found in the uploaded document.',
       requiredDocuments: reqDocsArr.map((docStr, idx) => ({
         id: `doc-${idx}`,
         label: docStr,
